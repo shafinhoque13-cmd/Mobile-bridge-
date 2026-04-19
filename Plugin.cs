@@ -1,18 +1,13 @@
-using BepInEx;
+ using BepInEx;
 using UnityEngine;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.1")]
+    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.2")]
     public class Plugin : BaseUnityPlugin
     {
         private bool _active = true;
         private Rect _winRect = new Rect(30, 30, 250, 120);
-
-        void Awake()
-        {
-            Logger.LogInfo("!!! MOBILE BRIDGE v1.4.1 LOADED - UI SYSTEM DETECTED !!!");
-        }
 
         void OnGUI()
         {
@@ -32,7 +27,7 @@ namespace MobileBridge
         {
             if (!_active) return;
 
-            // 1. Force the Player Data variables
+            // Target PlayerData
             GameObject pd = GameObject.Find("PlayerData");
             if (pd != null)
             {
@@ -40,22 +35,21 @@ namespace MobileBridge
                 pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
 
-            // 2. Force the Game Manager
+            // Target GameManager
             GameObject gm = GameObject.Find("GameManager");
             if (gm != null)
             {
                 gm.SendMessage("SetAtBench", true, SendMessageOptions.DontRequireReceiver);
             }
 
-            // 3. The "UIModule" Force: This bypasses the need for UnityEngine.UI.dll
-            // It scans for any object that looks like an Equip button and tells it to be active
-            Object[] allObjects = Object.FindObjectsOfType<GameObject>();
+            // MODERN FIX: Using FindObjectsByType for better mobile performance
+            // FindObjectsSortMode.None prevents the "Obsolete" warning
+            GameObject[] allObjects = Object.FindObjectsByType<GameObject>(FindObjectsSortMode.None);
             foreach (GameObject obj in allObjects)
             {
                 string name = obj.name.ToLower();
                 if (name.Contains("equip") || name.Contains("slot") || name.Contains("button"))
                 {
-                    // This sends a direct instruction to the UI component to wake up
                     obj.SendMessage("set_interactable", true, SendMessageOptions.DontRequireReceiver);
                 }
             }
