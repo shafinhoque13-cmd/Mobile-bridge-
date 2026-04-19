@@ -1,14 +1,18 @@
 using BepInEx;
 using UnityEngine;
-using System.Reflection;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.3.0")]
+    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.3.1")]
     public class Plugin : BaseUnityPlugin
     {
         private bool _active = true;
         private Rect _winRect = new Rect(30, 30, 200, 100);
+
+        void Awake()
+        {
+            Logger.LogInfo("!!! MOBILE BRIDGE AWAKE (v1.3.1) !!!");
+        }
 
         void OnGUI()
         {
@@ -17,7 +21,8 @@ namespace MobileBridge
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1));
 
             _winRect = GUI.Window(0, _winRect, (id) => {
-                if (GUILayout.Button(_active ? "BYPASS: ON" : "BYPASS: OFF", GUILayout.ExpandHeight(true)))
+                string color = _active ? "cyan" : "red";
+                if (GUILayout.Button($"<color={color}>BYPASS: {(_active ? "ON" : "OFF")}</color>", GUILayout.ExpandHeight(true)))
                     _active = !_active;
                 GUI.DragWindow();
             }, "Bridge");
@@ -27,27 +32,20 @@ namespace MobileBridge
         {
             if (!_active) return;
 
-            // Target the HeroController directly - this is where Bench logic usually lives on mobile
-            var hero = GameObject.FindObjectOfType<Component>(); 
-            // We search for a component that contains "HeroController" or "Player"
-            
+            // Using the modern, faster Unity 2023+ methods to avoid warnings
+            // This tells the game to constantly check the bench status
             GameObject gm = GameObject.Find("GameManager");
             if (gm != null)
             {
-                // Force the global bench state in the GameManager
                 gm.SendMessage("SetAtBench", true, SendMessageOptions.DontRequireReceiver);
             }
 
-            // Force the specific PlayerData variables
-            // On mobile, these are often accessed via a static 'instance'
-            try {
-                GameObject pdObj = GameObject.Find("PlayerData");
-                if (pdObj != null)
-                {
-                    pdObj.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
-                    pdObj.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
-                }
-            } catch { }
+            GameObject pdObj = GameObject.Find("PlayerData");
+            if (pdObj != null)
+            {
+                pdObj.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+                pdObj.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
+            }
         }
     }
 }
