@@ -5,50 +5,61 @@ using UnityEngine;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Bridge for Bench Mod", "1.0.0")]
+    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Bridge", "1.1.0")]
     public class Plugin : BaseUnityPlugin
     {
-        private bool _isBridgeActive = true; 
+        private bool _isBridgeActive = true;
+        // Smaller initial size for a "bubble" feel
+        private Rect _windowRect = new Rect(20, 20, 300, 150); 
 
         void OnGUI()
         {
-            // Scale UI for high-res mobile screens
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(Screen.width / 1920f, Screen.height / 1080f, 1));
+            // Auto-scale for mobile DPI
+            float scale = Screen.width / 1920f;
+            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
 
-            // Floating Button to check status
-            string status = _isBridgeActive ? "<color=cyan>BRIDGE: CONNECTED</color>" : "<color=yellow>BRIDGE: STANDBY</color>";
-            if (GUI.Button(new Rect(50, 50, 350, 100), $"<size=24>{status}</size>"))
+            // The window ID (0) makes it interactable
+            _windowRect = GUI.Window(0, _windowRect, DrawBubble, "Bridge");
+        }
+
+        void DrawBubble(int windowID)
+        {
+            // This line makes the entire window draggable by touch
+            GUI.DragWindow(new Rect(0, 0, 10000, 40)); 
+
+            GUILayout.BeginVertical();
+            string status = _isBridgeActive ? "<color=cyan>ACTIVE</color>" : "<color=red>OFF</color>";
+            
+            if (GUILayout.Button(status, GUILayout.Height(60)))
             {
                 _isBridgeActive = !_isBridgeActive;
             }
+            GUILayout.EndVertical();
+
+            // Also allows dragging from the body of the bubble
+            GUI.DragWindow();
         }
 
         void Update()
         {
             if (!_isBridgeActive) return;
 
-            // 1. Force the 'atBench' flag directly in the PlayerData
+            // Force Bench State
             GameObject pd = GameObject.Find("PlayerData");
             if (pd != null)
             {
                 pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
-                pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
 
-            // 2. Scan for the PC mod and override its internal settings
+            // Sync with PC Mod
             foreach (var plugin in Chainloader.PluginInfos.Values)
             {
-                // We look for 'No Bench Restrictions' specifically
                 if (plugin.Metadata.Name.Contains("Bench"))
                 {
                     foreach (var configKey in plugin.Instance.Config.Keys)
                     {
                         var entry = plugin.Instance.Config[configKey];
-                        // Force the 'Enabled' toggle to True so it bypasses Harmony checks
-                        if (entry.SettingType == typeof(bool))
-                        {
-                            entry.BoxedValue = true;
-                        }
+                        if (entry.SettingType == typeof(bool)) entry.BoxedValue = true;
                     }
                 }
             }
