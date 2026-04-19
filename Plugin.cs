@@ -1,14 +1,18 @@
 using BepInEx;
 using UnityEngine;
-using UnityEngine.UI; // Required to find the actual buttons
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.0")]
+    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.1")]
     public class Plugin : BaseUnityPlugin
     {
         private bool _active = true;
-        private Rect _winRect = new Rect(30, 30, 200, 100);
+        private Rect _winRect = new Rect(30, 30, 250, 120);
+
+        void Awake()
+        {
+            Logger.LogInfo("!!! MOBILE BRIDGE v1.4.1 LOADED - UI SYSTEM DETECTED !!!");
+        }
 
         void OnGUI()
         {
@@ -17,7 +21,8 @@ namespace MobileBridge
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1));
 
             _winRect = GUI.Window(0, _winRect, (id) => {
-                if (GUILayout.Button(_active ? "BRIDGE: ON" : "BRIDGE: OFF", GUILayout.ExpandHeight(true)))
+                string statusColor = _active ? "cyan" : "red";
+                if (GUILayout.Button($"<color={statusColor}>BRIDGE: {(_active ? "ON" : "OFF")}</color>", GUILayout.ExpandHeight(true)))
                     _active = !_active;
                 GUI.DragWindow();
             }, "Bridge");
@@ -27,7 +32,7 @@ namespace MobileBridge
         {
             if (!_active) return;
 
-            // 1. Force the Data Flags
+            // 1. Force the Player Data variables
             GameObject pd = GameObject.Find("PlayerData");
             if (pd != null)
             {
@@ -35,14 +40,23 @@ namespace MobileBridge
                 pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
 
-            // 2. The "Deep Unlock": Find inventory buttons and force them active
-            // This targets the UI buttons directly so they stop being grey
-            Selectable[] allButtons = GameObject.FindObjectsOfType<Selectable>();
-            foreach (Selectable btn in allButtons)
+            // 2. Force the Game Manager
+            GameObject gm = GameObject.Find("GameManager");
+            if (gm != null)
             {
-                if (btn.name.Contains("Equip") || btn.name.Contains("Slot"))
+                gm.SendMessage("SetAtBench", true, SendMessageOptions.DontRequireReceiver);
+            }
+
+            // 3. The "UIModule" Force: This bypasses the need for UnityEngine.UI.dll
+            // It scans for any object that looks like an Equip button and tells it to be active
+            Object[] allObjects = Object.FindObjectsOfType<GameObject>();
+            foreach (GameObject obj in allObjects)
+            {
+                string name = obj.name.ToLower();
+                if (name.Contains("equip") || name.Contains("slot") || name.Contains("button"))
                 {
-                    btn.interactable = true;
+                    // This sends a direct instruction to the UI component to wake up
+                    obj.SendMessage("set_interactable", true, SendMessageOptions.DontRequireReceiver);
                 }
             }
         }
