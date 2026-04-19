@@ -2,63 +2,59 @@ using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Bootstrap; 
 using UnityEngine;
+using System;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Bridge", "1.1.0")]
+    [BepInPlugin("com.shafin.mobile.bridge", "Ultimate Mobile Bridge", "1.2.0")]
     public class Plugin : BaseUnityPlugin
     {
-        private bool _isBridgeActive = true;
-        // Smaller initial size for a "bubble" feel
-        private Rect _windowRect = new Rect(20, 20, 300, 150); 
+        private bool _active = true;
+        private Rect _winRect = new Rect(20, 20, 250, 100); 
 
         void OnGUI()
         {
-            // Auto-scale for mobile DPI
-            float scale = Screen.width / 1920f;
+            GUI.depth = -1000;
+            float scale = Screen.height / 1080f;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
 
-            // The window ID (0) makes it interactable
-            _windowRect = GUI.Window(0, _windowRect, DrawBubble, "Bridge");
-        }
-
-        void DrawBubble(int windowID)
-        {
-            // This line makes the entire window draggable by touch
-            GUI.DragWindow(new Rect(0, 0, 10000, 40)); 
-
-            GUILayout.BeginVertical();
-            string status = _isBridgeActive ? "<color=cyan>ACTIVE</color>" : "<color=red>OFF</color>";
-            
-            if (GUILayout.Button(status, GUILayout.Height(60)))
-            {
-                _isBridgeActive = !_isBridgeActive;
-            }
-            GUILayout.EndVertical();
-
-            // Also allows dragging from the body of the bubble
-            GUI.DragWindow();
+            // Small draggable bubble
+            _winRect = GUI.Window(0, _winRect, (id) => {
+                if (GUILayout.Button(_active ? "<color=cyan>BYPASS: ON</color>" : "<color=red>BYPASS: OFF</color>", GUILayout.Height(50)))
+                    _active = !_active;
+                GUI.DragWindow();
+            }, "Bridge");
         }
 
         void Update()
         {
-            if (!_isBridgeActive) return;
+            if (!_active) return;
 
-            // Force Bench State
+            // 1. Force Global Player States
             GameObject pd = GameObject.Find("PlayerData");
             if (pd != null)
             {
+                // This targets the specific flags for Bench and Equipping
                 pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+                pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
 
-            // Sync with PC Mod
+            // 2. Force the Inventory UI to unlock
+            // Mobile ports often use 'InventoryItemToolManager' for Silk Skills/Crests
+            GameObject toolManager = GameObject.Find("InventoryItemToolManager");
+            if (toolManager != null)
+            {
+                toolManager.SendMessage("SetCanChangeEquips", true, SendMessageOptions.DontRequireReceiver);
+            }
+
+            // 3. Keep the PC Mod you uploaded synced
             foreach (var plugin in Chainloader.PluginInfos.Values)
             {
                 if (plugin.Metadata.Name.Contains("Bench"))
                 {
-                    foreach (var configKey in plugin.Instance.Config.Keys)
+                    foreach (var key in plugin.Instance.Config.Keys)
                     {
-                        var entry = plugin.Instance.Config[configKey];
+                        var entry = plugin.Instance.Config[key];
                         if (entry.SettingType == typeof(bool)) entry.BoxedValue = true;
                     }
                 }
