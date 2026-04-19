@@ -1,56 +1,57 @@
 using BepInEx;
 using BepInEx.Configuration;
-using BepInEx.Bootstrap; // This is the "Bridge" part
+using BepInEx.Bootstrap; 
 using UnityEngine;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Bridge", "1.0.0")]
+    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Bridge for Bench Mod", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
-        private bool _isUnlocked = false;
+        private bool _isBridgeActive = true; 
 
         void OnGUI()
         {
-            // Scale for high-res phone screens
+            // Scale UI for high-res mobile screens
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(Screen.width / 1920f, Screen.height / 1080f, 1));
 
-            // Floating Bridge Toggle
-            string btnText = _isUnlocked ? "<color=green>BRIDGE: ACTIVE</color>" : "<color=red>BRIDGE: OFF</color>";
-            if (GUI.Button(new Rect(50, 50, 300, 100), btnText))
+            // Floating Button to check status
+            string status = _isBridgeActive ? "<color=cyan>BRIDGE: CONNECTED</color>" : "<color=yellow>BRIDGE: STANDBY</color>";
+            if (GUI.Button(new Rect(50, 50, 350, 100), $"<size=24>{status}</size>"))
             {
-                _isUnlocked = !_isUnlocked;
-                if (_isUnlocked) ForcePCModActivation();
-            }
-        }
-
-        private void ForcePCModActivation()
-        {
-            // This searches all loaded plugins for the 'No Bench Restrictions' mod
-            foreach (var plugin in Chainloader.PluginInfos.Values)
-            {
-                if (plugin.Metadata.Name.Contains("Bench"))
-                {
-                    // Force its config to 'True' in the phone's memory
-                    foreach (var entry in plugin.Instance.Config.Keys)
-                    {
-                        var config = plugin.Instance.Config[entry];
-                        if (config.Definition.Key.Contains("Enabled") || config.Definition.Key.Contains("Bench"))
-                        {
-                            config.BoxedValue = true;
-                        }
-                    }
-                }
+                _isBridgeActive = !_isBridgeActive;
             }
         }
 
         void Update()
         {
-            if (!_isUnlocked) return;
+            if (!_isBridgeActive) return;
 
-            // Constantly force the 'atBench' state so the inventory never locks
+            // 1. Force the 'atBench' flag directly in the PlayerData
             GameObject pd = GameObject.Find("PlayerData");
-            if (pd != null) pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+            if (pd != null)
+            {
+                pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+                pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
+            }
+
+            // 2. Scan for the PC mod and override its internal settings
+            foreach (var plugin in Chainloader.PluginInfos.Values)
+            {
+                // We look for 'No Bench Restrictions' specifically
+                if (plugin.Metadata.Name.Contains("Bench"))
+                {
+                    foreach (var configKey in plugin.Instance.Config.Keys)
+                    {
+                        var entry = plugin.Instance.Config[configKey];
+                        // Force the 'Enabled' toggle to True so it bypasses Harmony checks
+                        if (entry.SettingType == typeof(bool))
+                        {
+                            entry.BoxedValue = true;
+                        }
+                    }
+                }
+            }
         }
     }
 }
