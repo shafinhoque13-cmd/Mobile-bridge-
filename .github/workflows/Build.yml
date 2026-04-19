@@ -5,20 +5,16 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
-env:
-  # This fixes the Node.js 20 deprecation warning
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
     - name: Checkout Code
-      uses: actions/checkout@v4
+      uses: actions/checkout@v4 # Already latest
 
     - name: Setup .NET
-      uses: actions/setup-dotnet@v4
+      uses: actions/setup-dotnet@v4 # Already latest
       with:
         dotnet-version: 6.0.x
 
@@ -26,7 +22,7 @@ jobs:
       run: dotnet build MobileBridge.csproj --configuration Release
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v4 # Already latest
       with:
         name: MobileBridge-DLL
         path: bin/Release/net472/MobileBridge.dll
