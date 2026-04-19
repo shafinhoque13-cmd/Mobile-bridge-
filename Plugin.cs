@@ -1,18 +1,14 @@
 using BepInEx;
 using UnityEngine;
+using UnityEngine.UI; // Required to find the actual buttons
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.3.1")]
+    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.0")]
     public class Plugin : BaseUnityPlugin
     {
         private bool _active = true;
         private Rect _winRect = new Rect(30, 30, 200, 100);
-
-        void Awake()
-        {
-            Logger.LogInfo("!!! MOBILE BRIDGE AWAKE (v1.3.1) !!!");
-        }
 
         void OnGUI()
         {
@@ -21,8 +17,7 @@ namespace MobileBridge
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1));
 
             _winRect = GUI.Window(0, _winRect, (id) => {
-                string color = _active ? "cyan" : "red";
-                if (GUILayout.Button($"<color={color}>BYPASS: {(_active ? "ON" : "OFF")}</color>", GUILayout.ExpandHeight(true)))
+                if (GUILayout.Button(_active ? "BRIDGE: ON" : "BRIDGE: OFF", GUILayout.ExpandHeight(true)))
                     _active = !_active;
                 GUI.DragWindow();
             }, "Bridge");
@@ -32,19 +27,23 @@ namespace MobileBridge
         {
             if (!_active) return;
 
-            // Using the modern, faster Unity 2023+ methods to avoid warnings
-            // This tells the game to constantly check the bench status
-            GameObject gm = GameObject.Find("GameManager");
-            if (gm != null)
+            // 1. Force the Data Flags
+            GameObject pd = GameObject.Find("PlayerData");
+            if (pd != null)
             {
-                gm.SendMessage("SetAtBench", true, SendMessageOptions.DontRequireReceiver);
+                pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+                pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
 
-            GameObject pdObj = GameObject.Find("PlayerData");
-            if (pdObj != null)
+            // 2. The "Deep Unlock": Find inventory buttons and force them active
+            // This targets the UI buttons directly so they stop being grey
+            Selectable[] allButtons = GameObject.FindObjectsOfType<Selectable>();
+            foreach (Selectable btn in allButtons)
             {
-                pdObj.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
-                pdObj.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
+                if (btn.name.Contains("Equip") || btn.name.Contains("Slot"))
+                {
+                    btn.interactable = true;
+                }
             }
         }
     }
