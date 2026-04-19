@@ -1,50 +1,45 @@
 using BepInEx;
-using BepInEx.Logging;
 using UnityEngine;
 
 namespace MobileBridge
 {
-    // Added specific process targeting to help BepInEx find the game
-    [BepInPlugin("com.shafin.mobile.bridge", "Ultimate Mobile Bridge", "1.2.5")]
-    [BepInProcess("Silksong.exe")] // Even on mobile, the internal process name often mimics PC
+    // Simplified ID and version for better detection
+    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.0.0")]
     public class Plugin : BaseUnityPlugin
     {
-        internal static ManualLogSource Log;
         private bool _active = true;
-        private Rect _winRect = new Rect(20, 20, 250, 120);
+        private Rect _winRect = new Rect(50, 50, 250, 150);
 
+        // This runs the moment the mod is detected
         void Awake()
         {
-            Log = Logger;
-            Log.LogInfo("MOBILE BRIDGE DETECTED AND LOADED!");
+            Logger.LogInfo("!!! MOBILE BRIDGE AWAKE !!!");
         }
 
         void OnGUI()
         {
             GUI.depth = -1000;
-            // Use a simpler scaling method for detection
-            float s = Screen.height / 720f; 
+            // Use standard scaling
+            float s = Screen.height / 1080f;
             GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1));
 
-            _winRect = GUI.Window(0, _winRect, DrawWindow, "Bridge");
-        }
-
-        void DrawWindow(int id)
-        {
-            if (GUILayout.Button(_active ? "BYPASS: ON" : "BYPASS: OFF", GUILayout.ExpandHeight(true)))
-                _active = !_active;
-            GUI.DragWindow();
+            _winRect = GUI.Window(0, _winRect, (id) => {
+                if (GUILayout.Button(_active ? "BYPASS: ON" : "BYPASS: OFF", GUILayout.ExpandHeight(true)))
+                    _active = !_active;
+                GUI.DragWindow();
+            }, "Bridge");
         }
 
         void Update()
         {
             if (!_active) return;
 
-            // Manual override for Bench State
+            // Direct force: Telling the game we are always at a bench
             GameObject pd = GameObject.Find("PlayerData");
             if (pd != null)
             {
                 pd.SendMessage("SetBool", new object[] { "atBench", true }, SendMessageOptions.DontRequireReceiver);
+                pd.SendMessage("SetBool", new object[] { "canEquip", true }, SendMessageOptions.DontRequireReceiver);
             }
         }
     }
