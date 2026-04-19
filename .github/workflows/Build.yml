@@ -1,13 +1,29 @@
 name: Build Mobile Bridge
-on: [push, workflow_dispatch]
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: 6.0.x }
-      - run: dotnet build MobileBridge.csproj --configuration Release
-      - uses: actions/upload-artifact@v4
-        with: { name: BridgeDLL, path: bin/Release/net472/MobileBridge.dll }
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 6.0.x
+
+    - name: Build Bridge
+      run: dotnet build MobileBridge.csproj --configuration Release
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: MobileBridge-DLL
+        path: bin/Release/net472/MobileBridge.dll
         
