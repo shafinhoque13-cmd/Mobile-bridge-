@@ -1,58 +1,57 @@
 using BepInEx;
 using UnityEngine;
+using BepInEx.Bootstrap;
 
 namespace MobileBridge
 {
-    [BepInPlugin("com.shafin.bridge", "MobileBridge", "1.4.4")]
+    [BepInPlugin("com.shafin.mobile.bridge", "Mobile Master Bridge", "1.7.0")]
     public class Plugin : BaseUnityPlugin
     {
-        private bool _active = true;
-        private Rect _winRect = new Rect(100, 100, 250, 120);
-        
-        // Dragging variables
-        private bool _dragging = false;
-        private Vector2 _lastMousePos;
+        private bool _benchActive = true;
+        private Rect _winRect = new Rect(20, 150, 220, 100);
+
+        void Awake()
+        {
+            DontDestroyOnLoad(this.gameObject);
+        }
 
         void OnGUI()
         {
             GUI.depth = -1000;
-            
-            // Scaling for high DPI mobile screens
-            float scale = Screen.height / 1080f;
-            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(scale, scale, 1));
+            float s = Screen.height / 1080f;
+            GUI.matrix = Matrix4x4.TRS(Vector3.zero, Quaternion.identity, new Vector3(s, s, 1));
 
-            // Custom Drag Logic (Android Compatible)
-            Vector2 currentMouse = new Vector2(Input.mousePosition.x / scale, (Screen.height - Input.mousePosition.y) / scale);
-            
-            if (Input.GetMouseButtonDown(0) && _winRect.Contains(currentMouse))
-                _dragging = true;
-            
-            if (_dragging && Input.GetMouseButton(0))
-            {
-                Vector2 delta = currentMouse - _lastMousePos;
-                _winRect.position += delta;
-            }
-            
-            if (Input.GetMouseButtonUp(0))
-                _dragging = false;
-
-            _lastMousePos = currentMouse;
-
-            // Draw Window
             _winRect = GUI.Window(0, _winRect, (id) => {
-                string status = _active ? "<color=cyan>ON</color>" : "<color=red>OFF</color>";
-                if (GUILayout.Button($"BRIDGE: {status}", GUILayout.ExpandHeight(true)))
+                // Toggle Bench Bypass
+                if (GUILayout.Button(_benchActive ? "BENCH: ON" : "BENCH: OFF"))
+                    _benchActive = !_benchActive;
+
+                // TRIGGER CONFIG MANAGER
+                if (GUILayout.Button("OPEN MOD SETTINGS"))
                 {
-                    _active = !_active;
+                    TriggerConfigManager();
                 }
+                GUI.DragWindow();
             }, "Bridge");
+        }
+
+        private void TriggerConfigManager()
+        {
+            // This searches for the standard BepInEx Configuration Manager and tells it to open
+            foreach (var plugin in Chainloader.PluginInfos.Values)
+            {
+                if (plugin.Metadata.GUID.Contains("ConfigurationManager"))
+                {
+                    plugin.Instance.SendMessage("ToggleWindow", SendMessageOptions.DontRequireReceiver);
+                }
+            }
         }
 
         void Update()
         {
-            if (!_active) return;
+            if (!_benchActive) return;
 
-            // Force Bench States
+            // Bench Bypass logic
             GameObject gm = GameObject.Find("GameManager");
             if (gm != null) gm.SendMessage("SetAtBench", true, SendMessageOptions.DontRequireReceiver);
 
